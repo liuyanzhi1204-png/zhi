@@ -28,16 +28,23 @@
  *   点未看的星 → 星转蓝脉冲 → 四页内容就位（标签栏出现）→ 大图卡片从星点位置弹性弹出
  *   （一类叙事同时在底部面板逐字写）→ 叙事播完就停住：不自动换图、不自动收卡片
  *   → 点「科普精讲 / 误区避雷 / 记忆口诀」任一页 = 卡片内淡入第二张照片（二类海报），
- *     场景叙事页同时换成二类叙事 —— 换图只能由这一下点击触发，绝不自动
+ *     场景叙事页同时换成二类叙事；再点「场景叙事」= 切回一类实景图与一类叙事 ——
+ *     换图只能由这几下点击触发，绝不自动
  *   → 卡片只由鼠标点击（或 ESC）收起；收起时字幕消失、星点位置弹出小图、星转白常亮
- *   点已看的星（回看）→ 只重播大图（四页直接就位、不打字，换图同样靠点那三页）
+ *   点已看的星（回看）→ 只重播大图（四页直接就位、不打字，换图同样靠点那几页）
  *   8 星全看完 → 星轨转金 + 结尾逐字打出（等卡片收起来之后）
  *
  * 底部面板的四个标签页（内容都写在 storyData.json 的点位上）：
  *   场景叙事 = narrative  /  narrative2，跟着两张图走：卡片弹出时逐字写一类，
- *              卡片切到第二张海报时平切换成二类
+ *              卡片切到第二张海报时平切换成二类，点回本页又切回一类
  *   科普精讲 = aiTip         误区避雷 = myth        记忆口诀 = rhyme
  *   序章没有四类内容，标签栏隐藏，仍走「叙事 → aiTip」的老时序。
+ *
+ * 入口动线（对齐 漫游前传/ui 的「联动」节）：
+ *   封面「开始漫游」→ 漫游前传（六镜 40s）→ 前传末尾「开启探索」跳本页 #world
+ *   → 平台识别 #world，跳过封面直接落在星图；#world 落地即从地址栏抹掉，
+ *   它只是前传跳过来时的一次性信号 —— 之后刷新一律回到封面从头开始。
+ *   单文件版没有前传，封面按钮直接进星图。
  *
  * HUD：左上「返回首页」「重置进度」，右上「已探索 n/总数」+ 胶囊里的可视化进度条。
  *   返回首页保留已探索进度（可再点开始漫游接着走）；重置进度一键清空回到初始状态。
@@ -51,6 +58,10 @@
      ======================================================================== */
   var CONFIG = {
     DATA_URL: './storyData.json',
+
+    // 封面「开始漫游」的去处：漫游前传（六镜开场）；前传末尾「开启探索」跳回本页 #world。
+    // 单文件版（build.js）打包时置空 —— 没有前传目录时点按钮直接进星图。
+    PREQUEL_URL: '漫游前传/index.html',
 
     TYPE_SPEED: 40,          // 叙事打字机 40ms/字（规范 4）
     TITLE_SPEED: 70,         // 结尾标题逐字速度
@@ -133,6 +144,8 @@
     cardOpen: false,
     awaitCardClose: false,         // 叙事已播完但卡片还开着：收尾（星转白 / 小图 / 队列续播）都等它收起来
     photo2Ready: false,            // 一类叙事播完了没：没播完时点标签只翻页，不换海报
+    photo2Shown: false,            // 卡片当前显示的是不是二类海报（是的话点「场景叙事」能切回一类）
+    photoMax: null,                // 图片尺寸约束（max-width / max-height），开卡片时量好存着
     cardTimer: null,
 
     guideTimer: null,              // 新手引导的出现 / 退场
@@ -371,7 +384,16 @@
       State.cardOpen = true;
       State.activeSpot = spot;
       State.photo2Ready = false;
+      State.photo2Shown = false;
       clearTimeout(State.cardTimer);
+
+      // 量一次图片尺寸约束存起来：切到 is-photo2 后这两个值被 CSS 覆盖成 none，
+      // 反向从海报切回一类图时就没得量了
+      var cs = window.getComputedStyle(img);
+      State.photoMax = {
+        w: parseFloat(cs.maxWidth) || window.innerWidth * 0.92,
+        h: parseFloat(cs.maxHeight) || window.innerHeight * 0.64
+      };
 
       // 第二张照片：每次开卡片都先退回透明，等叙事播完再交叉淡入。
       // 缺图 / 加载失败 → 标记在点位上，之后只播第一张，流程照常
@@ -422,7 +444,7 @@
       });
     },
 
-    /** 第一张照片停留结束：卡片过渡到第二张的比例，同时把第二张交叉淡入。
+    /** 点后三个标签：卡片过渡到第二张（二类海报）的比例，同时把海报交叉淡入。
         没配图 / 加载失败 / 卡片已被点掉 → 返回 false，静默跳过（时序不受影响） */
     showSecondPhoto: function (spot) {
       var card = DOM.bigcardCard;
@@ -437,10 +459,10 @@
       card.style.height = card.offsetHeight + 'px';
       void card.offsetWidth;
 
-      // 目标尺寸：约束（max-width / max-height）直接从 CSS 读，不在 JS 里抄一遍
-      var cs = window.getComputedStyle(DOM.bigcardImg);
-      var maxW = parseFloat(cs.maxWidth) || window.innerWidth * 0.92;
-      var maxH = parseFloat(cs.maxHeight) || window.innerHeight * 0.64;
+      // 目标尺寸：约束用开卡片时量好的那份（is-photo2 状态下量不到）
+      var m = State.photoMax || {};
+      var maxW = m.w || window.innerWidth * 0.92;
+      var maxH = m.h || window.innerHeight * 0.64;
       var ar = img2.naturalWidth / img2.naturalHeight;
       var w = Math.min(maxW, maxH * ar);
 
@@ -448,6 +470,34 @@
       card.style.width = Utils.round(w, 1) + 'px';
       card.style.height = Utils.round(w / ar, 1) + 'px';
       img2.classList.add('is-in');
+      State.photo2Shown = true;
+      return true;
+    },
+
+    /** 点「场景叙事」：卡片从二类海报切回一类实景图（showSecondPhoto 的反向操作）。
+        海报淡出、卡片过渡回第一张的比例；is-photo2 留着不收 —— 图片仍是绝对定位铺满卡片 */
+    showFirstPhoto: function (spot) {
+      var card = DOM.bigcardCard;
+      var img1 = DOM.bigcardImg;
+
+      if (!State.cardOpen || !spot || !State.photo2Shown) return false;
+
+      var ar = img1.naturalWidth / img1.naturalHeight;
+      if (!ar) return false;                             // 一类图没解码好，保持海报
+
+      card.style.width = card.offsetWidth + 'px';
+      card.style.height = card.offsetHeight + 'px';
+      void card.offsetWidth;
+
+      var m = State.photoMax || {};
+      var maxW = m.w || window.innerWidth * 0.92;
+      var maxH = m.h || window.innerHeight * 0.64;
+      var w = Math.min(maxW, maxH * ar);
+
+      card.style.width = Utils.round(w, 1) + 'px';
+      card.style.height = Utils.round(w / ar, 1) + 'px';
+      DOM.bigcardImg2.classList.remove('is-in');         // 海报淡出，露出下面的一类图
+      State.photo2Shown = false;
       return true;
     },
 
@@ -457,6 +507,7 @@
       DOM.bigcardCard.style.width = '';
       DOM.bigcardCard.style.height = '';
       DOM.bigcardImg2.classList.remove('is-in');
+      State.photo2Shown = false;
     },
 
     /** 收起大卡片；已经收起时直接回调 */
@@ -858,7 +909,12 @@
           Flow.preload();
 
           UI.hideLoader();
-          UI.showCover();
+          if (window.location.hash === '#world') {
+            Flow.clearHash();            // 信号用完即抹：刷新要回到封面从头开始
+            Flow.enterWorld();           // 从漫游前传过来：跳过封面，直接落在星空
+          } else {
+            UI.showCover();
+          }
         })
         .catch(function (err) {
           console.error('[应急星图] storyData.json 读取失败：', err);
@@ -883,7 +939,7 @@
     },
 
     bindEvents: function () {
-      DOM.startBtn.addEventListener('click', Flow.enterWorld);
+      DOM.startBtn.addEventListener('click', Flow.enterPrequel);
       DOM.restartBtn.addEventListener('click', function () { window.location.reload(); });
       DOM.homeBtn.addEventListener('click', Flow.goHome);
       DOM.resetBtn.addEventListener('click', Flow.resetProgress);
@@ -965,14 +1021,20 @@
       });
     },
 
-    /** 标签页点击：先翻页；点科普精讲 / 误区避雷 / 记忆口诀 时把卡片里的图换成二类海报。
-        换图只由这一下点击触发 —— 一类叙事还没打完就先只翻页，等打完再点才换 */
+    /** 标签页点击：先翻页；点后三页（科普精讲 / 误区避雷 / 记忆口诀）换成二类海报，
+        点回第 1 页（场景叙事）再切回一类实景图 —— 图与叙事文案成套来回换。
+        换图只由这几下点击触发：一类叙事还没打完时点后三页只翻页，等打完再点才换 */
     onTabClick: function (n) {
       UI.selectTab(n);
 
-      if (n < 2) return;                         // 第 1 页只看一类叙事
       var spot = State.activeSpot;
-      if (!State.cardOpen || !spot || !State.photo2Ready) return;
+      if (!State.cardOpen || !spot) return;
+
+      if (n === 1) {
+        if (UI.showFirstPhoto(spot)) UI.setNarrative(spot.narrative);
+        return;
+      }
+      if (!State.photo2Ready) return;
       if (UI.showSecondPhoto(spot)) UI.setNarrative(spot.narrative2);
     },
 
@@ -990,6 +1052,22 @@
         // 回看只是「再看一眼图片」，关掉面板就该干净 —— 不留上一条的叙事与标题
         if (wasReview) UI.resetPanel();
       });
+    },
+
+    /** 封面「开始漫游」→ 漫游前传；单文件版（PREQUEL_URL 为空）直接进星图 */
+    enterPrequel: function () {
+      if (CONFIG.PREQUEL_URL) {
+        window.location.href = CONFIG.PREQUEL_URL;
+        return;
+      }
+      Flow.enterWorld();
+    },
+
+    /** 抹掉地址栏里的 #world（前传跳过来的一次性信号，落地即清） */
+    clearHash: function () {
+      try {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      } catch (e) { /* 单文件版从 file:// 打开时可能改不了地址栏，不影响使用 */ }
     },
 
     enterWorld: function () {

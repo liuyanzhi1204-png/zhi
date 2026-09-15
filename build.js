@@ -4,6 +4,8 @@
  * 把 index.html / style.css / main.js / storyData.json / photoes 里的图片
  * 全部并成一个自包含的 HTML，输出到 deploy/index.html。
  * 双击即可打开，不需要本地服务器，拷给任何人都能直接看。
+ * 注意：不含「漫游前传」开场页（独立页面 + 同目录音频，无法内联），
+ * 该版本点封面「开始漫游」会直接进星图。
  *
  * 开发文件一律原样保留：改完文案或样式，重新跑一次本脚本即可。
  * ========================================================================== */
@@ -33,8 +35,16 @@ const inline = (p) => {
 
 let html = read('index.html');
 const css = read('style.css');
-const js = read('main.js');
+const src = read('main.js');
 const data = JSON.parse(read('storyData.json'));
+
+// 单文件版没有 漫游前传/ 目录（前传是独立页面 + 同目录音频，无法内联）：
+// 置空 PREQUEL_URL，点「开始漫游」直接进星图（多文件版保留跳前传）。
+const PREQUEL_MARK = "PREQUEL_URL: '漫游前传/index.html'";
+if (!src.includes(PREQUEL_MARK)) {
+  throw new Error('单文件降级失败：main.js 里没找到 PREQUEL_URL 配置行，请检查写法是否改动过');
+}
+const js = src.replace(PREQUEL_MARK, "PREQUEL_URL: ''");
 
 // 二类照片（每点位第二张）：JSON 里写的路径优先；路径对不上就按 二类/<序号>.* 找；
 // 还没有图就返回 null，本次打包跳过换图（不影响第一张与整体流程）
