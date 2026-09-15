@@ -1,0 +1,1212 @@
+/* ==========================================================================
+ * 青春护航 应急有我 · 沉浸式长卷  ——  style.css
+ * --------------------------------------------------------------------------
+ * 视觉规范（严格对齐设计稿数值）：
+ *   主背景 #0E1B33 · 主按钮/进度 应急蓝 #2E6BE6 · 星点橙 #FF7A29 · 结尾金 #FFC53D
+ *   星点三态：未看=橙呼吸 · 正在点=蓝脉冲 · 已看=白常亮
+ *   面板 rgba(18,35,63,.8) + blur 16px，圆角 16px · 叙事 16px / 行高 1.8
+ *   按钮圆角 12px · 整体暗调电影感
+ * 目录：01 变量 · 02 基础 · 03 通用组件 · 04 载入 · 05 封面 · 06 星图舞台
+ *      07 星轨 · 08 星点三态 · 09 HUD · 10 文字面板 · 11 新手引导 · 12 结尾
+ *      13 大图片卡片 · 14 错误层 · 15 移动端抽屉 · 16 无障碍降级
+ * ========================================================================== */
+
+/* ==========================================================================
+   01 变量
+   ========================================================================== */
+:root {
+  /* 底色层次：由深到浅，长卷的纵深感全靠这四阶 */
+  --bg:        #0E1B33;          /* 主背景（规范指定） */
+  --bg-deep:   #060D1C;
+  --bg-mid:    #16294A;
+  --bg-hi:     #1E3A66;
+
+  /* 主题色 */
+  --primary:   #2E6BE6;          /* 应急蓝 */
+  --primary-hi:#4C86F5;
+  --hot:       #FF7A29;          /* 热点橙 */
+  --hot-hi:    #FFA35C;
+  --gold:      #FFC53D;          /* 结尾金 */
+
+  /* 文字 */
+  --text:      #FFFFFF;
+  --text-dim:  rgba(255, 255, 255, .62);
+  --text-dim2: rgba(255, 255, 255, .42);
+  --tip:       #A9C8FF;          /* 浅蓝科普文字 */
+
+  /* 面板 */
+  --panel-bg:  rgba(18, 35, 63, .8);
+  --panel-line:rgba(255, 255, 255, .10);
+
+  /* 形状与动效 */
+  --r-btn:     12px;
+  --r-panel:   16px;
+  --ease:      cubic-bezier(.22, .61, .36, 1);
+
+  --font: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ==========================================================================
+   02 基础
+   ========================================================================== */
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, p { margin: 0; }
+
+.is-hidden { display: none !important; }
+
+/* ==========================================================================
+   03 通用组件
+   ========================================================================== */
+.btn {
+  position: relative;
+  overflow: hidden;
+  /* 移动端可点区域 ≥48px（规范 7） */
+  min-height: 52px;
+  padding: 0 54px;
+  border: 0;
+  border-radius: var(--r-btn);
+  font-family: var(--font);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: .18em;
+  text-indent: .18em;
+  cursor: pointer;
+  transition: transform .3s var(--ease), box-shadow .3s var(--ease), background .3s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* 主按钮：应急蓝 #2E6BE6 */
+.btn--primary {
+  color: #fff;
+  background: var(--primary);
+  box-shadow: 0 14px 40px rgba(46, 107, 230, .40);
+}
+.btn--primary:hover { background: var(--primary-hi); transform: translateY(-2px); box-shadow: 0 20px 52px rgba(46, 107, 230, .55); }
+.btn--primary:active { transform: translateY(0) scale(.985); }
+
+/* 次级按钮：描边 */
+.btn--ghost {
+  color: var(--gold);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(255, 197, 61, .45);
+}
+.btn--ghost:hover { background: rgba(255, 197, 61, .10); transform: translateY(-2px); }
+.btn--ghost:active { transform: translateY(0) scale(.985); }
+
+/* 按钮高光扫过 */
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 32%, rgba(255, 255, 255, .34) 50%, transparent 68%);
+  transform: translateX(-130%);
+  pointer-events: none;
+}
+.btn:hover::after { transform: translateX(130%); transition: transform .85s var(--ease); }
+
+@keyframes spin    { to { transform: rotate(360deg); } }
+@keyframes fadeUp  { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes cardIn  { from { opacity: 0; transform: translateY(24px) scale(.975); } to { opacity: 1; transform: none; } }
+@keyframes worldIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes twinkle { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@keyframes drift   { from { transform: translate3d(-2%, 0, 0); } to { transform: translate3d(2%, 0, 0); } }
+
+/* 星点呼吸：未看时缓慢明暗（规范 3） */
+@keyframes halo {
+  0%, 100% { transform: scale(.86); opacity: .34; }
+  50%      { transform: scale(1.16); opacity: .62; }
+}
+
+/* 正在点击：更快更亮的脉冲闪烁 */
+@keyframes haloPulse {
+  0%, 100% { transform: scale(.9);   opacity: .5; }
+  50%      { transform: scale(1.32); opacity: .95; }
+}
+@keyframes corePulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.38); }
+}
+
+/* 大图片卡片：从星点位置弹性放大 / 缩回 */
+@keyframes springIn {
+  from { opacity: 0; transform: scale(.12); }
+  60%  { opacity: 1; }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes springOut {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(.1); }
+}
+
+/* 星点小图：从星星下方弹出来 */
+@keyframes thumbIn {
+  from { opacity: 0; transform: scale(.3); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* 下划线光标闪烁 */
+@keyframes caret { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+/* ==========================================================================
+   04 载入遮罩
+   ========================================================================== */
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  transition: opacity .5s var(--ease), visibility .5s;
+}
+.loader.is-leaving { opacity: 0; visibility: hidden; }
+.loader__ring {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid rgba(46, 107, 230, .25);
+  border-top-color: var(--primary);
+  animation: spin .9s linear infinite;
+}
+
+/* ==========================================================================
+   05 封面页
+   ========================================================================== */
+.cover {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  /* 渐变星光背景 */
+  background:
+    radial-gradient(120% 80% at 50% 6%, #1B3566 0%, #122348 32%, var(--bg) 62%, var(--bg-deep) 100%);
+  transition: opacity .9s var(--ease), visibility .9s;
+}
+.cover.is-leaving { opacity: 0; visibility: hidden; }
+
+.cover__bg { position: absolute; inset: 0; overflow: hidden; }
+
+/* 星野：三层不同大小的星点，缓慢明暗 */
+.cover__stars {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.6px 1.6px at 70px 110px, rgba(255, 255, 255, .95), transparent),
+    radial-gradient(1.2px 1.2px at 260px 60px,  rgba(255, 255, 255, .70), transparent),
+    radial-gradient(1.8px 1.8px at 430px 190px, rgba(255, 255, 255, .85), transparent),
+    radial-gradient(1px 1px     at 580px 90px,  rgba(255, 255, 255, .55), transparent),
+    radial-gradient(1.3px 1.3px at 150px 300px, rgba(255, 255, 255, .65), transparent),
+    radial-gradient(1px 1px     at 700px 270px, rgba(255, 255, 255, .50), transparent),
+    radial-gradient(1.5px 1.5px at 330px 340px, rgba(200, 220, 255, .70), transparent);
+  background-size: 820px 420px;
+  animation: twinkle 5.5s ease-in-out infinite;
+  -webkit-mask-image: radial-gradient(100% 80% at 50% 30%, #000 0%, transparent 78%);
+          mask-image: radial-gradient(100% 80% at 50% 30%, #000 0%, transparent 78%);
+}
+
+/* 两团辉光：应急蓝主光 + 一点暖光 */
+.cover__glow { position: absolute; filter: blur(70px); border-radius: 50%; }
+.cover__glow--a {
+  left: 50%;
+  top: 62%;
+  width: 62vw;
+  height: 42vh;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(46, 107, 230, .34), transparent 68%);
+  animation: drift 18s ease-in-out infinite alternate;
+}
+.cover__glow--b {
+  left: 72%;
+  top: 24%;
+  width: 34vw;
+  height: 30vh;
+  background: radial-gradient(circle, rgba(255, 122, 41, .13), transparent 70%);
+  animation: drift 24s ease-in-out infinite alternate-reverse;
+}
+
+/* 底部一道水平光带，撑出「电影感」的地平线 */
+.cover__beam {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: 26%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(76, 134, 245, .55), transparent);
+  box-shadow: 0 0 60px 14px rgba(46, 107, 230, .22);
+}
+
+/* 极淡颗粒，压住渐变的色带 */
+.cover__grain {
+  position: absolute;
+  inset: 0;
+  opacity: .5;
+  background-image:
+    repeating-linear-gradient(0deg,  rgba(255, 255, 255, .012) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .010) 0 1px, transparent 1px 4px);
+}
+
+/* —— 流星雨（封面与星图共用）——
+   每条流星 = 一个 <i>：本体是头部亮点，::before 是拖尾。
+   运动方式：整体先 rotate(-35deg) 再沿自身「局部 -X 轴」平移。
+   局部坐标一旋转，拖尾方向就自动与运动方向对齐，不必额外算角度；
+   反之拖尾落在局部 +X（正后方），所以 ::before 用 left 正值拖在身后。 */
+.meteors {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.meteors i {
+  position: absolute;
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0;
+  box-shadow: 0 0 8px 2px rgba(190, 220, 255, .85);
+  /* 周期里只有约 1/4 的时间可见，其余时间隐身 —— 这样才能形成「一阵一阵」的流星雨 */
+  animation: meteor 9s linear infinite;
+  will-change: transform, opacity;
+}
+
+.meteors i::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  width: var(--tail, 120px);
+  height: 1.5px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, .95) 0%,
+    rgba(170, 205, 255, .45) 35%,
+    rgba(140, 180, 255, 0) 100%);
+}
+
+@keyframes meteor {
+  0%, 58%   { opacity: 0; transform: rotate(-35deg) translateX(0); }
+  61%       { opacity: 1; }
+  84%       { opacity: 1; }
+  90%, 100% { opacity: 0; transform: rotate(-35deg) translateX(var(--dist, -760px)); }
+}
+
+/* 12 条流星：起点偏右上、各自不同的速度与周期错位，避免整齐划一 */
+.meteors i:nth-child(1)  { left: 62%; top: -4%;  animation-duration: 8.4s;  animation-delay: 0s;    --tail: 150px; --dist: -820px; }
+.meteors i:nth-child(2)  { left: 78%; top: 6%;   animation-duration: 11.2s; animation-delay: 1.7s;  --tail: 110px; --dist: -700px; }
+.meteors i:nth-child(3)  { left: 88%; top: -10%; animation-duration: 9.6s;  animation-delay: 3.4s;  --tail: 170px; --dist: -880px; }
+.meteors i:nth-child(4)  { left: 52%; top: -12%; animation-duration: 12.4s; animation-delay: 5.1s;  --tail: 130px; --dist: -640px; }
+.meteors i:nth-child(5)  { left: 96%; top: 18%;  animation-duration: 10.2s; animation-delay: 0.9s;  --tail: 145px; --dist: -800px; }
+.meteors i:nth-child(6)  { left: 68%; top: 22%;  animation-duration: 13.1s; animation-delay: 6.8s;  --tail: 105px; --dist: -720px; }
+.meteors i:nth-child(7)  { left: 84%; top: 32%;  animation-duration: 9.1s;  animation-delay: 2.6s;  --tail: 160px; --dist: -860px; }
+.meteors i:nth-child(8)  { left: 44%; top: 2%;   animation-duration: 11.8s; animation-delay: 4.3s;  --tail: 120px; --dist: -680px; }
+.meteors i:nth-child(9)  { left: 99%; top: -2%;  animation-duration: 8.8s;  animation-delay: 7.5s;  --tail: 140px; --dist: -840px; }
+.meteors i:nth-child(10) { left: 74%; top: -16%; animation-duration: 12.8s; animation-delay: 3.0s;  --tail: 175px; --dist: -900px; }
+.meteors i:nth-child(11) { left: 58%; top: 14%;  animation-duration: 10.7s; animation-delay: 8.2s;  --tail: 115px; --dist: -740px; }
+.meteors i:nth-child(12) { left: 90%; top: 40%;  animation-duration: 9.9s;  animation-delay: 5.9s;  --tail: 155px; --dist: -780px; }
+
+/* 少数几条偏暖偏细，避免整片流星长得一模一样 */
+.meteors i:nth-child(3),
+.meteors i:nth-child(10) { width: 2px; height: 2px; }
+.meteors i:nth-child(10)::before {
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, .9) 0%,
+    rgba(200, 210, 255, .3) 40%,
+    rgba(180, 200, 255, 0) 100%);
+}
+
+.cover__inner {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  text-align: center;
+  animation: fadeUp 1s var(--ease) both;
+}
+
+.cover__kicker {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .4em;
+  text-indent: .4em;
+  color: rgba(169, 200, 255, .9);
+  margin-bottom: 26px;
+}
+
+/* 大标题：白色 64px 粗体（窄屏自适应降档，见第 14 节） */
+.cover__title {
+  font-size: clamp(34px, 7vw, 64px);
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-indent: .1em;
+  line-height: 1.24;
+  color: var(--text);
+  text-shadow: 0 8px 44px rgba(46, 107, 230, .45);
+}
+
+.cover__rule {
+  display: block;
+  width: 120px;
+  height: 2px;
+  margin: 28px auto 26px;
+  background: linear-gradient(90deg, transparent, var(--primary-hi), transparent);
+}
+
+.cover__intro {
+  max-width: 700px;
+  margin: 0 auto;
+  font-size: 16px;
+  line-height: 2;
+  letter-spacing: .04em;
+  color: var(--text-dim);
+}
+
+.cover__hint {
+  margin-top: 26px;
+  font-size: 12.5px;
+  line-height: 1.9;
+  letter-spacing: .05em;
+  color: var(--text-dim2);
+}
+
+.cover .btn { margin-top: 44px; }
+
+/* ==========================================================================
+   06 星图舞台：远层星场 + 近层星座，两层以不同系数随鼠标漂移
+   ========================================================================== */
+.world {
+  position: fixed;
+  inset: 0;
+  animation: worldIn .9s var(--ease) both;
+}
+
+.sky {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;                 /* 漂移跟随指针：禁掉浏览器自带的滚动 / 缩放手势 */
+  background:
+    radial-gradient(88% 58% at 72% 16%, rgba(46, 107, 230, .22), transparent 62%),
+    radial-gradient(70% 52% at 16% 82%, rgba(255, 122, 41, .09), transparent 66%),
+    linear-gradient(180deg, var(--bg-deep) 0%, #0A1428 32%, var(--bg) 66%, #0B1730 100%);
+}
+
+/* 漂移层：向外各扩 3%，位移后也不会露出边缘 */
+.sky__drift {
+  position: absolute;
+  inset: -3%;
+  will-change: transform;
+}
+.sky__drift > span, .sky__drift > svg, .sky__drift > div { position: absolute; }
+
+/* 细碎星场：两层疏密不同的星点纹理，缓慢明暗 */
+.sky__stars {
+  inset: 0;
+  -webkit-mask-image: radial-gradient(120% 104% at 50% 44%, #000 0%, #000 60%, transparent 100%);
+          mask-image: radial-gradient(120% 104% at 50% 44%, #000 0%, #000 60%, transparent 100%);
+}
+.sky__stars--far {
+  background-image:
+    radial-gradient(1.3px 1.3px at 60px 90px,   rgba(255, 255, 255, .80), transparent),
+    radial-gradient(1px 1px     at 210px 40px,  rgba(255, 255, 255, .55), transparent),
+    radial-gradient(1.5px 1.5px at 320px 210px, rgba(255, 255, 255, .70), transparent),
+    radial-gradient(1px 1px     at 90px 300px,  rgba(200, 220, 255, .50), transparent),
+    radial-gradient(1.2px 1.2px at 400px 330px, rgba(255, 255, 255, .60), transparent);
+  background-size: 470px 400px;
+  opacity: .8;
+  animation: twinkle 7s ease-in-out infinite;
+}
+.sky__stars--near {
+  background-image:
+    radial-gradient(1.9px 1.9px at 140px 120px, rgba(255, 255, 255, .95), transparent),
+    radial-gradient(1.6px 1.6px at 480px 260px, rgba(210, 228, 255, .80), transparent),
+    radial-gradient(2.1px 2.1px at 300px 430px, rgba(255, 255, 255, .85), transparent),
+    radial-gradient(1.4px 1.4px at 620px 80px,  rgba(255, 226, 200, .70), transparent);
+  background-size: 760px 620px;
+  opacity: .9;
+  animation: twinkle 11s ease-in-out infinite reverse;
+}
+
+/* 两团深空辉光：冷蓝为主，暖橙一点 */
+.sky__glow { inset: 0; }
+.sky__glow--a { background: radial-gradient(42% 34% at 70% 20%, rgba(76, 134, 245, .16), transparent 70%); }
+.sky__glow--b { background: radial-gradient(36% 30% at 14% 74%, rgba(255, 122, 41, .10), transparent 70%); }
+
+/* 极淡颗粒，压住大片渐变的色带 */
+.sky__grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .4;
+  background-image:
+    repeating-linear-gradient(0deg,  rgba(255, 255, 255, .012) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .010) 0 1px, transparent 1px 4px);
+}
+
+/* ==========================================================================
+   07 星轨：8 颗星依序相连的细淡线条；全部看完后整体转金色发光
+   viewBox 用 0-100 百分比坐标 + preserveAspectRatio="none"；
+   线宽交给 non-scaling-stroke，任何屏宽下都保持 1px
+   ========================================================================== */
+.trails {
+  left: 3%;
+  top: 3%;
+  width: 94%;
+  height: 94%;
+  overflow: visible;
+}
+.trails line {
+  stroke: rgba(200, 220, 255, .22);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  transition: stroke .9s var(--ease);
+}
+.trails.is-gold line {
+  stroke: var(--gold);
+  filter: drop-shadow(0 0 4px rgba(255, 197, 61, .9));
+}
+
+/* ==========================================================================
+   08 星点三态：未看=橙呼吸 · 正在点=蓝脉冲 · 已看=白常亮
+   按钮本体 56px 命中区，视觉核心 14px，光晕负责呼吸与脉冲
+   ========================================================================== */
+.stars { inset: 3%; }
+
+.star {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  background: none;
+  transform: translate(-50%, -50%);
+  color: var(--hot);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color .45s var(--ease);
+}
+.star:focus-visible { outline: none; }
+.star:focus-visible .star__halo {
+  background: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .5);
+  animation: none;
+  opacity: .9;
+}
+
+.star__halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 66px;
+  height: 66px;
+  margin: -33px 0 0 -33px;
+  border-radius: 50%;
+  background: radial-gradient(circle, currentColor 0%, transparent 62%);
+  opacity: .42;
+  animation: halo 2.6s ease-in-out infinite;
+}
+
+.star__core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 45%, #FFF 0%, #FFF 16%, currentColor 58%);
+  box-shadow: 0 0 10px 2px currentColor, 0 0 24px 7px currentColor;
+}
+
+/* 正在点击：蓝脉冲，更快更亮 */
+.star.is-active { color: var(--primary-hi); }
+.star.is-active .star__halo { opacity: .8; animation: haloPulse .95s ease-in-out infinite; }
+.star.is-active .star__core { animation: corePulse .95s ease-in-out infinite; }
+
+/* 已经看完：白色常亮，不再呼吸 */
+.star.is-visited { color: #FFF; }
+.star.is-visited .star__halo { animation: none; opacity: .26; }
+
+/* 星点小图：叙事播完后挂在星星正下方，只占据点位的位置 */
+.star__thumb {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 132px;
+  height: 96px;
+  margin: 12px 0 0 -66px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .28);
+  background: rgba(12, 24, 46, .88);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .6), 0 0 24px rgba(120, 170, 255, .18);
+  pointer-events: none;               /* 命中仍由星点按钮承担：点小图 = 重看 */
+  display: none;
+  transform-origin: 50% 0;
+}
+.star__thumb.is-in { display: block; animation: thumbIn .5s cubic-bezier(.34, 1.56, .64, 1) both; }
+.star__thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* 小图的图片兜底：占位文字 */
+.star__thumb .thumb__ph {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0 8px;
+  color: rgba(200, 220, 255, .82);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  text-align: center;
+}
+
+/* ==========================================================================
+   09 HUD：左上标题 + 右上进度
+   ========================================================================== */
+.hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: calc(18px + env(safe-area-inset-top)) 30px 18px;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(6, 13, 28, .78), transparent);
+  z-index: 5;
+}
+
+/* 左区：标题 + 返回首页 / 重置进度（.hud 整体不吃指针，这两个得自己开） */
+.hud__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.hud__title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .22em;
+  color: var(--text-dim);
+  text-shadow: 0 2px 14px rgba(0, 0, 0, .6);
+  white-space: nowrap;
+}
+
+.hud__btn {
+  pointer-events: auto;
+  flex: 0 0 auto;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  background: rgba(18, 35, 63, .62);
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .3s var(--ease), border-color .3s var(--ease), background .3s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.hud__btn:hover {
+  color: #fff;
+  border-color: rgba(76, 134, 245, .6);
+  background: rgba(46, 107, 230, .28);
+}
+
+/* 右上角「已探索 n/总数」胶囊 + 下面一条可视化进度 */
+.hud__progress {
+  pointer-events: auto;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 7px 14px 9px;
+  border-radius: 14px;
+  background: rgba(18, 35, 63, .62);
+  border: 1px solid rgba(76, 134, 245, .32);
+  -webkit-backdrop-filter: blur(10px);
+          backdrop-filter: blur(10px);
+}
+
+.hud__progress-text {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  color: #fff;
+  text-align: center;
+}
+
+.hud__bar {
+  display: block;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .12);
+  overflow: hidden;
+}
+.hud__bar-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--primary-hi));
+  box-shadow: 0 0 10px rgba(46, 107, 230, .9);
+  transition: width .7s var(--ease);
+}
+
+/* ==========================================================================
+   10 文字面板：底部毛玻璃卡
+   ========================================================================== */
+.panel {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  transform: translateX(-50%);
+  width: min(940px, calc(100vw - 48px));
+  padding: 22px 30px 24px;
+  border-radius: var(--r-panel);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-line);
+  box-shadow: 0 26px 70px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .06);
+  -webkit-backdrop-filter: blur(16px);
+          backdrop-filter: blur(16px);
+  z-index: 12;                        /* 高于大卡片遮罩：图片弹出的同时面板仍可读、可打字 */
+  overflow: hidden;
+}
+
+.panel__handle { display: none; }        /* 仅移动端显示 */
+
+.panel__head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.panel__scene {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .24em;
+  color: var(--primary-hi);
+}
+
+.panel__name {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--text);
+}
+
+.panel__chevron { display: none; }
+
+/* 标签栏：只有点位（.panel--spot）才出现，序章隐藏 */
+.panel__tabs {
+  display: none;
+  gap: 6px;
+  margin-bottom: 12px;
+  overflow-x: auto;                   /* 窄屏放不下时横向滚动，绝不换行 */
+  scrollbar-width: none;
+}
+.panel__tabs::-webkit-scrollbar { display: none; }
+.panel--spot .panel__tabs { display: flex; }
+
+.panel__tab {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .13);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .3s var(--ease), border-color .3s var(--ease), background .3s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.panel__tab:hover { color: #fff; border-color: rgba(76, 134, 245, .5); }
+.panel__tab.is-active {
+  color: #fff;
+  background: rgba(46, 107, 230, .3);
+  border-color: rgba(76, 134, 245, .72);
+}
+
+/* 四个内容页：一次只显示一个，切换是平切 */
+.pane { display: none; }
+.pane.is-active { display: block; }
+
+/* 误区避雷 / 记忆口诀：与科普精讲同字号，颜色走正文白；
+   文案里用 \n 分条，pre-line 让每条各占一行 */
+.panel__note {
+  font-size: 14px;
+  line-height: 1.85;
+  letter-spacing: .02em;
+  color: var(--text);
+  min-height: 1.85em;
+  white-space: pre-line;
+}
+
+.panel__body { }
+
+.panel__narrative {
+  font-size: 16px;                      /* 规范：白色 16px */
+  line-height: 1.8;                     /* 规范：行高 1.8 */
+  letter-spacing: .02em;
+  color: var(--text);
+  min-height: 1.8em;
+}
+
+/* 闪烁下划线光标 */
+.panel__caret {
+  display: inline-block;
+  width: 11px;
+  height: 2px;
+  margin-left: 2px;
+  vertical-align: baseline;
+  background: var(--primary-hi);
+  box-shadow: 0 0 8px rgba(76, 134, 245, .8);
+  animation: caret .9s steps(1, end) infinite;
+}
+
+/* 科普区（标签 2 的全部内容）：内容就绪后整体出现
+   刻意不加过渡 —— 点位之间是平切，内容直接换掉，不做淡入/位移 */
+.panel__tipbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  opacity: 0;
+}
+.panel__tipbox.is-in { opacity: 1; }
+
+/* 蓝色「AI 科普」徽章 */
+.panel__badge {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(46, 107, 230, .22);
+  border: 1px solid rgba(76, 134, 245, .5);
+  color: #C9DEFF;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  white-space: nowrap;
+}
+
+/* 浅蓝科普正文：文案里用 \n 分条，pre-line 让每条各占一行 */
+.panel__tip {
+  flex: 1 1 auto;
+  font-size: 14px;
+  line-height: 1.85;
+  letter-spacing: .02em;
+  color: var(--tip);
+  white-space: pre-line;
+}
+
+/* ==========================================================================
+   11 新手引导浮层：进星图后轻提示一下，几秒后自己退场
+   ========================================================================== */
+.guide {
+  position: absolute;
+  left: 50%;
+  bottom: 27vh;
+  transform: translate(-50%, 10px);
+  z-index: 14;                        /* 浮在面板与大卡片遮罩之上 */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 48px);
+  padding: 11px 20px;
+  border-radius: 999px;
+  background: rgba(18, 35, 63, .86);
+  border: 1px solid rgba(76, 134, 245, .45);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, .5), 0 0 26px rgba(46, 107, 230, .22);
+  -webkit-backdrop-filter: blur(12px);
+          backdrop-filter: blur(12px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .5s var(--ease), transform .5s var(--ease), visibility .5s;
+}
+
+.guide.is-in {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+/* 呼吸的小橙点：和未看的星点一个颜色，暗示「点那个」 */
+.guide__dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--hot);
+  box-shadow: 0 0 10px 2px rgba(255, 122, 41, .85);
+  animation: halo 2.2s ease-in-out infinite;
+}
+
+.guide__text {
+  font-size: 13.5px;
+  letter-spacing: .06em;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+/* ==========================================================================
+   12 结尾总结：居中弹层，金色文字
+   ========================================================================== */
+.ending {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 34px 22px;
+}
+.ending__mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 13, 28, .84);
+  -webkit-backdrop-filter: blur(12px);
+          backdrop-filter: blur(12px);
+}
+.ending__card {
+  position: relative;
+  width: 100%;
+  max-width: 760px;
+  max-height: 84vh;
+  overflow-y: auto;
+  padding: 46px 48px 40px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 197, 61, .26);
+  background: linear-gradient(180deg, rgba(18, 35, 63, .96), rgba(8, 16, 34, .98));
+  box-shadow: 0 44px 130px rgba(0, 0, 0, .72), inset 0 1px 0 rgba(255, 255, 255, .06);
+  animation: cardIn .75s var(--ease) both;
+  text-align: center;
+}
+
+.ending__kicker {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .36em;
+  text-indent: .36em;
+  color: rgba(255, 197, 61, .8);
+  margin-bottom: 16px;
+}
+
+.ending__title {
+  font-size: clamp(22px, 3.2vw, 30px);
+  font-weight: 800;
+  letter-spacing: .08em;
+  line-height: 1.5;
+  color: var(--gold);
+  text-shadow: 0 6px 30px rgba(255, 197, 61, .28);
+}
+
+/* 结尾标题的光标：金色下划线，逐字打完即撤 */
+.ending__caret {
+  display: inline-block;
+  width: 11px;
+  height: 2px;
+  margin-left: 4px;
+  vertical-align: baseline;
+  background: var(--gold);
+  box-shadow: 0 0 8px rgba(255, 197, 61, .8);
+  animation: caret .9s steps(1, end) infinite;
+}
+
+.ending__body { margin-top: 22px; text-align: left; }
+.ending__p {
+  margin-top: 16px;
+  font-size: 15.5px;
+  line-height: 2;
+  letter-spacing: .03em;
+  color: var(--gold);
+  min-height: 2em;                    /* 逐字写入前先占好行高，不跳动 */
+}
+
+/* 结尾按钮：正文逐字打完后才浮现 */
+.ending .btn {
+  margin-top: 34px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .6s var(--ease);
+}
+.ending .btn.is-in { opacity: 1; pointer-events: auto; }
+
+/* ==========================================================================
+   13 大图片卡片：从被点击的星点位置弹性弹出，尽量铺满屏幕
+   遮罩 z10 → 面板 z12 / 进度条 z13 浮在其上，图片与叙事可同时看
+   ========================================================================== */
+.bigcard {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6vh 24px 26vh;             /* 下留面板位，卡片不会被面板压住 */
+}
+
+.bigcard__mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 9, 20, .74);
+  -webkit-backdrop-filter: blur(9px);
+          backdrop-filter: blur(9px);
+  opacity: 0;
+  transition: opacity .45s var(--ease);
+}
+.bigcard.is-in .bigcard__mask { opacity: 1; }
+.bigcard.is-closing .bigcard__mask { opacity: 0; }
+
+/* 卡片：transform-origin 由 JS 按星点屏幕坐标写入 —— 从星星那里「长」出来 */
+.bigcard__card {
+  position: relative;
+  margin: 0;
+  line-height: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #0A1428;
+  box-shadow: 0 40px 120px rgba(0, 0, 0, .75),
+              0 0 0 1px rgba(140, 180, 255, .22),
+              inset 0 1px 0 rgba(255, 255, 255, .08);
+  cursor: pointer;                    /* 点任意处关闭 */
+  opacity: 0;
+  transform: scale(.12);
+}
+.bigcard.is-in .bigcard__card { animation: springIn .62s cubic-bezier(.34, 1.5, .5, 1) both; }
+.bigcard.is-closing .bigcard__card { animation: springOut .34s cubic-bezier(.5, 0, .75, .4) both; }
+
+.bigcard__img {
+  display: block;
+  max-width: min(92vw, 1180px);
+  max-height: 64vh;
+  width: auto;
+  height: auto;
+}
+
+/* 第二张照片：绝对定位盖满卡片做交叉淡入。
+   contain 不裁切 —— 海报上的字必须完整；卡片尺寸由 JS 过渡到第二张的比例 */
+.bigcard__img--second {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+  opacity: 0;
+  pointer-events: none;
+}
+.bigcard__img--second.is-in { opacity: 1; transition: opacity .7s var(--ease); }
+
+/* 换图时：卡片本身过渡到第二张的比例（横海报整幅铺开），
+   图片全部改为绝对定位，让卡片的宽高说了算 */
+.bigcard__card { transition: width .7s var(--ease), height .7s var(--ease); }
+.bigcard__card.is-photo2 .bigcard__img,
+.bigcard__card.is-photo2 .bigcard__ph {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+}
+
+/* 图片兜底：占位图（明确告诉读者这是示意图，流程与文字不受影响） */
+.bigcard__ph {
+  width: min(80vw, 900px);
+  height: min(58vh, 560px);
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed rgba(150, 185, 235, .45);
+  border-radius: 10px;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, .022) 0 12px, transparent 12px 24px),
+    rgba(10, 20, 40, .6);
+  opacity: 0;
+}
+.bigcard__ph.is-in { opacity: 1; transition: opacity .4s var(--ease); }
+.bigcard__phtext {
+  color: rgba(200, 220, 255, .85);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .3em;
+  text-indent: .3em;
+}
+
+/* ==========================================================================
+   14 错误层
+   ========================================================================== */
+.fatal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 22px;
+  background: rgba(6, 13, 28, .97);
+}
+.fatal__card {
+  width: 100%;
+  max-width: 620px;
+  padding: 34px 36px;
+  border-radius: var(--r-panel);
+  border: 1px solid rgba(255, 120, 120, .3);
+  background: linear-gradient(180deg, rgba(38, 18, 24, .96), rgba(14, 10, 16, .98));
+}
+.fatal__title { font-size: 19px; font-weight: 700; letter-spacing: .06em; color: #FFB4B4; margin-bottom: 16px; }
+.fatal__msg { font-size: 13.5px; line-height: 1.95; color: var(--text-dim); margin-bottom: 18px; }
+.fatal__code {
+  margin: 0;
+  padding: 16px 18px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, .5);
+  border: 1px solid rgba(255, 255, 255, .08);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.85;
+  color: #9EF0C8;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ==========================================================================
+   15 移动端：面板变底部抽屉
+   ========================================================================== */
+@media (max-width: 760px) {
+  /* 面板：贴底、通铺、只留上圆角，可收起 */
+  .panel {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transform: none;
+    width: auto;
+    padding: 0 20px calc(14px + env(safe-area-inset-bottom));
+    border-radius: var(--r-panel) var(--r-panel) 0 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+  }
+
+  /* 抽屉把手 */
+  .panel__handle {
+    display: block;
+    width: 100%;
+    height: 34px;
+    position: relative;
+    cursor: pointer;
+  }
+  .panel__handle::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 14px;
+    width: 44px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, .28);
+    transform: translateX(-50%);
+  }
+
+  .panel__head { margin-bottom: 0; }
+  .panel__chevron {
+    display: block;
+    margin-left: auto;
+    width: 9px;
+    height: 9px;
+    border-right: 2px solid var(--text-dim);
+    border-bottom: 2px solid var(--text-dim);
+    transform: rotate(-135deg) translate(-2px, -2px);
+    transition: transform .3s var(--ease);
+  }
+
+  /* 收起 / 展开：用 grid-template-rows 做高度过渡，避免 max-height 猜数值 */
+  .panel__body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .34s var(--ease);
+  }
+  .panel__inner { overflow: hidden; }
+  .panel.is-open .panel__body { grid-template-rows: 1fr; }
+  .panel.is-open .panel__inner { padding-bottom: 6px; }
+  .panel.is-open .panel__chevron { transform: rotate(45deg) translate(-2px, -2px); }
+
+  .panel__tipbox { flex-direction: column; gap: 10px; }
+  .panel__narrative { font-size: 15px; }
+
+  /* 触控目标放大；标题在窄屏让位给两个按钮与进度胶囊 */
+  .hud { padding: calc(14px + env(safe-area-inset-top)) 18px 14px; }
+  .hud__title { display: none; }
+  .hud__left { gap: 8px; }
+  .hud__btn { padding: 6px 11px; font-size: 11.5px; letter-spacing: .06em; }
+  .hud__progress { padding: 6px 12px 8px; }
+  .hud__progress-text { font-size: 12px; }
+
+  .panel__tab { padding: 5px 11px; font-size: 12px; }
+  .guide { bottom: 30vh; }
+  .guide__text { font-size: 13px; }
+
+  /* 星点小图收小一档，别在窄屏上压住邻居 */
+  .star__thumb { width: 104px; height: 76px; margin-left: -52px; }
+
+  /* 大图片卡片：手机下面板是收起抽屉，留白少一些 */
+  .bigcard { padding: 5vh 14px 20vh; }
+  .bigcard__img { max-width: 94vw; max-height: 54vh; }
+  .bigcard__ph { width: 88vw; height: 46vh; }
+
+  .btn { min-height: 52px; padding: 0 40px; font-size: 15.5px; }
+  .cover__intro { font-size: 14.5px; line-height: 1.9; }
+  .ending__card { padding: 34px 24px 30px; }
+  .ending__p { font-size: 14.5px; }
+}
+
+/* 极窄屏：标题再降一档，避免换行过碎 */
+@media (max-width: 400px) {
+  .cover__title { font-size: 30px; letter-spacing: .06em; }
+}
+
+/* ==========================================================================
+   16 无障碍降级
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
