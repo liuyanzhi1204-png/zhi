@@ -705,8 +705,6 @@
   <button class="enter" id="enter" type="button">开启探索</button>
   <div class="blackout" id="blackout"></div>
 
-  <audio id="bgm" src="青春护航·应急有我 背景音乐.mp3" preload="auto"></audio>
-
   <script>
   (function () {
     // ---------- 刷新规则：本页刷新 = 直接回平台封面首页（与平台一致，见 ui「联动」） ----------
@@ -725,7 +723,6 @@
     var INTERLUDE = 6000;    // 第三镜·星海陷落：无字空镜
     var ENTER_DELAY = 700;   // 末句定格后，按钮淡入前的留白
     var NEXT_URL = '../index.html#world';  // 平台星图；#world 让平台跳过封面直接落在星空
-    var BGM_VOLUME = 0.5;    // 主配乐音量（34s 自然收束，末句落在余韵里）
 
     var verseData = [
       {
@@ -795,23 +792,7 @@
     var glow = $('glow');
     var track = $('track');
     var enterBtn = $('enter');
-    var bgm = $('bgm');
     var stage = document.querySelector('.stage');
-
-    // ---------- 主配乐：首次交互后从当前镜接续进入 ----------
-    var filmPlaying = false;
-    var filmT0 = 0;
-
-    function startBgm() {
-      if (!bgm || !filmPlaying) return;
-      var elapsed = (performance.now() - filmT0) / 1000;
-      var dur = bgm.duration;
-      if (!dur || elapsed >= dur - 0.4) return;   // 乐曲已自然收束
-      bgm.volume = BGM_VOLUME;
-      try { bgm.currentTime = elapsed; } catch (e) {}
-      var p = bgm.play();
-      if (p && p.catch) p.catch(function () {});
-    }
 
     // ---------- 底层星云 ----------
     var nebulaDefs = [
@@ -1158,7 +1139,7 @@
       var scene = 'campus';
       var unlocked = false;
 
-      // 主配乐交给 BGM，程序化只负责音效与氛围层
+      // 程序化音效与氛围层（各镜一套增益，见 LEVELS）
       var LEVELS = {
         campus:   { f: 3.0, rumble: 0,     wind: 0,     shimmer: 0 },
         storm:    { f: 2.6, rumble: 0.10,  wind: 0.055, shimmer: 0 },
@@ -1306,7 +1287,6 @@
           unlocked = true;
           ramp(master.gain, 0.6, 2.5);
           apply(scene, 3);
-          startBgm();
         }
       }
 
@@ -1515,8 +1495,6 @@
     }
 
     function play() {
-      filmPlaying = true;
-      filmT0 = performance.now();
       timers.forEach(clearTimeout);
       timers = [];
       lineEls.forEach(function (el) { el.classList.remove('active', 'done'); });
@@ -1575,7 +1553,6 @@
     }
 
     function freezeFinal() {   // 本次会话已看过：不重播，直接定格末屏
-      filmPlaying = false;
       cur = lineEls.length - 1;
       lineEls.forEach(function (el) { el.classList.remove('active'); el.classList.add('done'); });
       lineEls[cur].classList.remove('done');
